@@ -29,19 +29,22 @@ function initGame() {
     explosions = [];
     healthPickups = [];
     gameOver = false;
-    
+
     // Hide UI elements
     gameMessage.style.display = "none";
     restartButton.style.display = "none";
-    
+
     // Show health bars
     tank1HealthContainer.style.display = "flex";
     tank2HealthContainer.style.display = "flex";
-    
+
+    // Calculate a common vertical coordinate (e.g., center of the canvas)
+    const commonY = canvas.height / 2;
+
     // Initialize tanks
     tank1 = {
-        x: 100,
-        y: 100,
+        x: 50, // Start near the left edge
+        y: commonY,
         width: 40,
         height: 50,
         speed: 4,
@@ -59,8 +62,8 @@ function initGame() {
     };
 
     tank2 = {
-        x: canvas.width - 140,
-        y: canvas.height - 140,
+        x: canvas.width - 90, // Start near the right edge
+        y: commonY,
         width: 40,
         height: 50,
         speed: 4,
@@ -76,7 +79,7 @@ function initGame() {
         barrelWidth: 8,
         id: 2
     };
-    
+
     createObstacles();
     spawnHealthPickup();
     updateHealthBars();
@@ -160,7 +163,7 @@ function spawnHealthPickup() {
     
     // Try to find an empty position
     let attempts = 0;
-    while (!validPosition && attempts < 50) {
+    while (!validPosition && attempts < 200) {
         attempts++;
         x = Math.floor(Math.random() * cols);
         y = Math.floor(Math.random() * rows);
