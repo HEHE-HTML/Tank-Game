@@ -4,32 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2 Player Tank Battle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div class="game-container">
-    <canvas id="gameCanvas"></canvas>
-    
-    <div id="tank1-health-container" class="health-bar-container">
-        <div class="health-bar-label">GREEN TANK</div>
-        <div class="health-bar-wrapper">
-            <div id="tank1-health" class="health-bar"></div>
+    <div id="menu-screen" class="screen">
+        <div class="menu-container">
+            <h1 class="game-title">TANK BATTLE</h1>
+            <div class="menu-options">
+                <button id="play-button" class="menu-button">PLAY GAME</button>
+                <button id="controls-button" class="menu-button">CONTROLS</button>
+            </div>
         </div>
     </div>
-    
-    <div id="tank2-health-container" class="health-bar-container">
-        <div class="health-bar-label">RED TANK</div>
-        <div class="health-bar-wrapper">
-            <div id="tank2-health" class="health-bar"></div>
+
+    <div id="controls-screen" class="screen hidden">
+        <div class="controls-container">
+            <h2 class="screen-title">CONTROLS</h2>
+            <div class="controls-grid">
+                <div class="player-controls">
+                    <h3 class="player-title green-text">GREEN TANK</h3>
+                    <ul class="controls-list">
+                        <li><span class="key">W</span> Move Forward</li>
+                        <li><span class="key">S</span> Move Backward</li>
+                        <li><span class="key">A</span> Rotate Left</li>
+                        <li><span class="key">D</span> Rotate Right</li>
+                        <li><span class="key">SPACE</span> Fire</li>
+                    </ul>
+                </div>
+                <div class="player-controls">
+                    <h3 class="player-title red-text">RED TANK</h3>
+                    <ul class="controls-list">
+                        <li><span class="key">↑</span> Move Forward</li>
+                        <li><span class="key">↓</span> Move Backward</li>
+                        <li><span class="key">←</span> Rotate Left</li>
+                        <li><span class="key">→</span> Rotate Right</li>
+                        <li><span class="key">ENTER</span> Fire</li>
+                    </ul>
+                </div>
+            </div>
+            <button id="back-button" class="menu-button">BACK</button>
         </div>
     </div>
-    
-    <div id="game-message"></div>
-    <button id="restart-button">PLAY AGAIN</button>
-</div>
 
-<script src="app.js"></script>
+    <div id="game-screen" class="screen hidden">
+        <div class="game-container">
+            <canvas id="gameCanvas"></canvas>
+            
+            <div id="health-bars-container">
+                <div id="tank1-health-container" class="health-bar-container">
+                    <div class="health-bar-label">GREEN TANK</div>
+                    <div class="health-bar-wrapper">
+                        <div id="tank1-health" class="health-bar"></div>
+                    </div>
+                </div>
+                
+                <div id="tank2-health-container" class="health-bar-container">
+                    <div class="health-bar-label">RED TANK</div>
+                    <div class="health-bar-wrapper">
+                        <div id="tank2-health" class="health-bar"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="game-message"></div>
+            <div id="game-buttons">
+                <button id="restart-button" class="game-button">PLAY AGAIN</button>
+                <button id="menu-button" class="game-button">MAIN MENU</button>
+            </div>
+            <div id="pause-indicator" class="hidden">PAUSED</div>
+        </div>
+    </div>
 
+    <script src="app.js"></script>
 </body>
 </html>

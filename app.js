@@ -1,3 +1,4 @@
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const tank1HealthBar = document.getElementById('tank1-health');
@@ -6,49 +7,103 @@ const tank1HealthContainer = document.getElementById('tank1-health-container');
 const tank2HealthContainer = document.getElementById('tank2-health-container');
 const gameMessage = document.getElementById('game-message');
 const restartButton = document.getElementById('restart-button');
+const menuButton = document.getElementById('menu-button');
+
+
+// Screens
+const menuScreen = document.getElementById('menu-screen');
+const controlsScreen = document.getElementById('controls-screen');
+const gameScreen = document.getElementById('game-screen');
+
+// Menu Buttons
+const playButton = document.getElementById('play-button');
+const controlsButton = document.getElementById('controls-button');
+const backButton = document.getElementById('back-button');
+
+// Game settings
+const TANK_WIDTH = 40;
+const TANK_HEIGHT = 50;
+const GRID_SIZE = 50;
+const DEFAULT_Y_POSITION = canvas.height / 2;
 
 // Set canvas dimensions
-canvas.width = Math.min(window.innerWidth * 0.8, 1000);
-canvas.height = Math.min(window.innerHeight * 0.8, 700);
+function setCanvasDimensions() {
+    canvas.width = Math.min(window.innerWidth * 0.8, 1000);
+    canvas.height = Math.min(window.innerHeight * 0.7, 600);
+    
+    // Adjust game container height to accommodate health bars
+    const gameContainer = document.querySelector('.game-container');
+    if (gameContainer) {
+        gameContainer.style.height = (canvas.height + 100) + 'px';
+    }
+}
 
-const gridSize = 50;
+// Game state
 let obstacles = [];
 let bullets = [];
 let explosions = [];
 let healthPickups = [];
 let gameOver = false;
-
-// Game state
+let isPaused = false;
+let gameLoopId = null;
 let tank1, tank2;
+let soundEnabled = true;
+
+// Sound effects
+const sounds = {
+    shoot: null,
+    explosion: null,
+    pickup: null,
+    menuClick: null,
+    tankHit: null,
+    gameStart: null,
+    victory: null
+};
+
+// Initialize sounds
+function initSounds() {
+    // Create audio contexts for sounds (implementation left for you to add actual sounds)
+    sounds.shoot = { play: () => {} };
+    sounds.explosion = { play: () => {} };
+    sounds.pickup = { play: () => {} };
+    sounds.menuClick = { play: () => {} };
+    sounds.tankHit = { play: () => {} };
+    sounds.gameStart = { play: () => {} };
+    sounds.victory = { play: () => {} };
+}
 
 // Initialize game
 function initGame() {
+    // Set canvas dimensions
+    setCanvasDimensions();
+    
     // Reset game state
     obstacles = [];
     bullets = [];
     explosions = [];
     healthPickups = [];
     gameOver = false;
+    isPaused = false;
 
     // Hide UI elements
     gameMessage.style.display = "none";
-    restartButton.style.display = "none";
+    document.getElementById('game-buttons').style.display = "none";
 
     // Show health bars
     tank1HealthContainer.style.display = "flex";
     tank2HealthContainer.style.display = "flex";
 
-    // Calculate a common vertical coordinate (e.g., center of the canvas)
-    const commonY = canvas.height / 2;
+    // Set DEFAULT_Y_POSITION to the vertical center of the canvas
+
 
     // Initialize tanks
     tank1 = {
         x: 50, // Start near the left edge
-        y: commonY,
-        width: 40,
-        height: 50,
+        y: DEFAULT_Y_POSITION,
+        width: TANK_WIDTH,
+        height: TANK_HEIGHT,
         speed: 4,
-        rotation: 0,
+        rotation: 0, // Start facing to the right
         color: '#2ecc71',
         borderColor: '#145a32',
         flashCount: 0,
@@ -63,9 +118,9 @@ function initGame() {
 
     tank2 = {
         x: canvas.width - 90, // Start near the right edge
-        y: commonY,
-        width: 40,
-        height: 50,
+        y: DEFAULT_Y_POSITION,
+        width: TANK_WIDTH,
+        height: TANK_HEIGHT,
         speed: 4,
         rotation: 180,
         color: '#e74c3c',
@@ -83,12 +138,18 @@ function initGame() {
     createObstacles();
     spawnHealthPickup();
     updateHealthBars();
+    
+    // Start game loop
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+    }
+    gameLoopId = requestAnimationFrame(gameLoop);
 }
 
 // Create obstacles for the game map
 function createObstacles() {
-    const rows = Math.floor(canvas.height / gridSize);
-    const cols = Math.floor(canvas.width / gridSize);
+    const rows = Math.floor(canvas.height / GRID_SIZE);
+    const cols = Math.floor(canvas.width / GRID_SIZE);
     
     // Keep edges of map clear
     const clearEdgeSize = 3;
@@ -103,11 +164,11 @@ function createObstacles() {
             y = clearEdgeSize + Math.floor(Math.random() * (rows - 2 * clearEdgeSize));
             
             // Check if position is clear from tanks
-            const tank1Clear = Math.hypot((x * gridSize) - tank1.x, (y * gridSize) - tank1.y) > 150;
-            const tank2Clear = Math.hypot((x * gridSize) - tank2.x, (y * gridSize) - tank2.y) > 150;
+            const tank1Clear = Math.hypot((x * GRID_SIZE) - tank1.x, (y * GRID_SIZE) - tank1.y) > 150;
+            const tank2Clear = Math.hypot((x * GRID_SIZE) - tank2.x, (y * GRID_SIZE) - tank2.y) > 150;
             
             validPosition = tank1Clear && tank2Clear && 
-                !obstacles.some(o => Math.abs(o.x - x * gridSize) < gridSize && Math.abs(o.y - y * gridSize) < gridSize);
+                !obstacles.some(o => Math.abs(o.x - x * GRID_SIZE) < GRID_SIZE && Math.abs(o.y - y * GRID_SIZE) < GRID_SIZE);
         }
         
         // Create a cluster of obstacles
@@ -119,10 +180,10 @@ function createObstacles() {
 function createObstacleCluster(startX, startY) {
     // Center obstacle
     obstacles.push({ 
-        x: startX * gridSize, 
-        y: startY * gridSize,
-        width: gridSize,
-        height: gridSize
+        x: startX * GRID_SIZE, 
+        y: startY * GRID_SIZE,
+        width: GRID_SIZE,
+        height: GRID_SIZE
     });
     
     // Random neighboring obstacles
@@ -137,13 +198,13 @@ function createObstacleCluster(startX, startY) {
             const ny = startY + dir.dy;
             
             // Ensure obstacle is within canvas
-            if (nx >= 0 && nx * gridSize < canvas.width - gridSize && 
-                ny >= 0 && ny * gridSize < canvas.height - gridSize) {
+            if (nx >= 0 && nx * GRID_SIZE < canvas.width - GRID_SIZE && 
+                ny >= 0 && ny * GRID_SIZE < canvas.height - GRID_SIZE) {
                 obstacles.push({ 
-                    x: nx * gridSize, 
-                    y: ny * gridSize,
-                    width: gridSize,
-                    height: gridSize
+                    x: nx * GRID_SIZE, 
+                    y: ny * GRID_SIZE,
+                    width: GRID_SIZE,
+                    height: GRID_SIZE
                 });
             }
         }
@@ -154,8 +215,8 @@ function createObstacleCluster(startX, startY) {
 function spawnHealthPickup() {
     if (healthPickups.length >= 3 || gameOver) return; // Limit number of health pickups
     
-    const rows = Math.floor(canvas.height / gridSize);
-    const cols = Math.floor(canvas.width / gridSize);
+    const rows = Math.floor(canvas.height / GRID_SIZE);
+    const cols = Math.floor(canvas.width / GRID_SIZE);
     
     let validPosition = false;
     let x, y;
@@ -168,12 +229,12 @@ function spawnHealthPickup() {
         x = Math.floor(Math.random() * cols);
         y = Math.floor(Math.random() * rows);
         
-        const pickupX = x * gridSize + (gridSize - healthPickupSize) / 2;
-        const pickupY = y * gridSize + (gridSize - healthPickupSize) / 2;
+        const pickupX = x * GRID_SIZE + (GRID_SIZE - healthPickupSize) / 2;
+        const pickupY = y * GRID_SIZE + (GRID_SIZE - healthPickupSize) / 2;
         
         // Check if this grid cell is empty (no obstacles)
         const cellIsEmpty = !obstacles.some(o => 
-            o.x === x * gridSize && o.y === y * gridSize
+            o.x === x * GRID_SIZE && o.y === y * GRID_SIZE
         );
         
         // Check if it's not too close to tanks
@@ -182,7 +243,7 @@ function spawnHealthPickup() {
         
         // Check if it's not too close to other pickups
         const otherPickupsClear = !healthPickups.some(p => 
-            Math.hypot(pickupX - p.x, pickupY - p.y) < gridSize
+            Math.hypot(pickupX - p.x, pickupY - p.y) < GRID_SIZE
         );
         
         validPosition = cellIsEmpty && tank1Clear && tank2Clear && otherPickupsClear;
@@ -190,8 +251,8 @@ function spawnHealthPickup() {
     
     if (validPosition) {
         healthPickups.push({
-            x: x * gridSize + (gridSize - healthPickupSize) / 2,
-            y: y * gridSize + (gridSize - healthPickupSize) / 2,
+            x: x * GRID_SIZE + (GRID_SIZE - healthPickupSize) / 2,
+            y: y * GRID_SIZE + (GRID_SIZE - healthPickupSize) / 2,
             width: healthPickupSize,
             height: healthPickupSize,
             healAmount: 25,
@@ -206,17 +267,17 @@ function spawnHealthPickup() {
 // Draw grid and obstacles
 function drawGrid() {
     // Draw grid lines
-    ctx.strokeStyle = '#5d6d7e';
+    ctx.strokeStyle = '#2c3e50';
     ctx.lineWidth = 1;
     
-    for (let x = 0; x < canvas.width; x += gridSize) {
+    for (let x = 0; x < canvas.width; x += GRID_SIZE) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, canvas.height);
         ctx.stroke();
     }
     
-    for (let y = 0; y < canvas.height; y += gridSize) {
+    for (let y = 0; y < canvas.height; y += GRID_SIZE) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(canvas.width, y);
@@ -225,500 +286,784 @@ function drawGrid() {
 
     // Draw obstacles
     obstacles.forEach(obstacle => {
-        // Fill
-        ctx.fillStyle = '#717d7e';
+        // Fill with a solid color
+        ctx.fillStyle = '#34495e'; // Uniform fill color
         ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
         
         // Thick outline
-        ctx.strokeStyle = '#4d5656';
+        ctx.strokeStyle = '#2c3e50'; // Outline color
+        ctx.lineWidth = 4;
+        ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+    });
+}
+function drawGrid() {
+    // Draw grid lines
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 1;
+    
+    for (let x = 0; x < canvas.width; x += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    
+    for (let y = 0; y < canvas.height; y += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+
+    // Draw obstacles
+    obstacles.forEach(obstacle => {
+        // Fill with a solid color
+        ctx.fillStyle = '#34495e'; // Uniform fill color
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        
+        // Thick outline
+        ctx.strokeStyle = '#2c3e50'; // Outline color
         ctx.lineWidth = 4;
         ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
         
-        // Inner details
-        ctx.fillStyle = '#616a6b';
-        ctx.fillRect(obstacle.x + 10, obstacle.y + 10, obstacle.width - 20, obstacle.height - 20);
+        // Draw inner square (slightly smaller)
+        const innerPadding = 10; // Padding for the inner square
+        ctx.fillStyle = '#2c3e50'; // Inner square color
+        ctx.fillRect(obstacle.x + innerPadding, obstacle.y + innerPadding, 
+                     obstacle.width - 2 * innerPadding, 
+                     obstacle.height - 2 * innerPadding);
     });
 }
 
-const keys = {
-    w: false,
-    a: false,
-    s: false,
-    d: false,
-    ArrowUp: false,
-    ArrowLeft: false,
-    ArrowDown: false,
-    ArrowRight: false,
-    " ": false,
-    Enter: false,
-};
 
-window.addEventListener('keydown', (e) => {
-    if (keys[e.key] !== undefined) {
-        keys[e.key] = true;
-        e.preventDefault(); // Prevent default behavior (scrolling)
-    }
-});
 
-window.addEventListener('keyup', (e) => {
-    if (keys[e.key] !== undefined) {
-        keys[e.key] = false;
-    }
-});
 
-restartButton.addEventListener('click', () => {
-    initGame();
-});
+// Draw health pickups
+function drawHealthPickups() {
+    healthPickups.forEach(pickup => {
+        // Pulse effect
+        pickup.pulse = (pickup.pulse + 0.05) % (2 * Math.PI);
+        const pulseFactor = 1 + 0.1 * Math.sin(pickup.pulse);
+        const size = pickup.width * pulseFactor;
 
-function updateTankMovement(tank, controls) {
-    // Store previous position
-    const prevX = tank.x;
-    const prevY = tank.y;
-    
-    // Handle rotation
-    if (controls.a) {
-        tank.rotation -= 3;
-    }
-    if (controls.d) {
-        tank.rotation += 3;
-    }
-    
-    // Normalize rotation
-    tank.rotation = (tank.rotation + 360) % 360;
-    
-    // Calculate movement based on rotation
-    let moveX = 0;
-    let moveY = 0;
-    
-    if (controls.w) {
-        moveX = tank.speed * Math.cos(tank.rotation * Math.PI / 180);
-        moveY = tank.speed * Math.sin(tank.rotation * Math.PI / 180);
-    }
-    if (controls.s) {
-        moveX = -tank.speed * Math.cos(tank.rotation * Math.PI / 180);
-        moveY = -tank.speed * Math.sin(tank.rotation * Math.PI / 180);
-    }
-    
-    // Try horizontal movement first
-    tank.x += moveX;
-    
-    // Check collisions horizontal
-    if (checkCollisionWithObstacles(tank) || checkCollisionWithTank(tank)) {
-        tank.x = prevX; // Revert x movement
-    }
-    
-    // Try vertical movement
-    tank.y += moveY;
-    
-    // Check collisions vertical
-    if (checkCollisionWithObstacles(tank) || checkCollisionWithTank(tank)) {
-        tank.y = prevY; // Revert y movement
-    }
-    
-    // Ensure tank stays within boundaries
-    tank.x = Math.max(0, Math.min(canvas.width - tank.width, tank.x));
-    tank.y = Math.max(0, Math.min(canvas.height - tank.height, tank.y));
-    
-    // Check for health pickup collisions
-    checkHealthPickupCollisions(tank);
-}
+        // Center the pickup position
+        const x = pickup.x - (size - pickup.width) / 2;
+        const y = pickup.y - (size - pickup.height) / 2;
 
-function checkCollision(rect1, rect2) {
-    // AABB collision detection with slightly reduced hitbox for tanks
-    const padding = (rect1.id === 1 || rect1.id === 2) ? 2 : 0; // Add padding only for tanks
-    
-    return (
-        rect1.x + padding < rect2.x + rect2.width &&
-        rect1.x + rect1.width - padding > rect2.x &&
-        rect1.y + padding < rect2.y + rect2.height &&
-        rect1.y + rect1.height - padding > rect2.y
-    );
-}
+        // Draw health pickup
+        ctx.save();
+        ctx.translate(x + size / 2, y + size / 2);
+        
+        // Outer circle (optional, if you want it)
+        ctx.fillStyle = '#ecf0f1'; // Light gray for circle background
+        ctx.beginPath();
+        ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+        ctx.fill();
 
-function checkCollisionWithObstacles(tank) {
-    for (const obstacle of obstacles) {
-        if (checkCollision(tank, obstacle)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function checkCollisionWithTank(tank) {
-    let targetTank = (tank.id === 1) ? tank2 : tank1;
-    return checkCollision(tank, targetTank);
-}
-
-function checkHealthPickupCollisions(tank) {
-    for (let i = healthPickups.length - 1; i >= 0; i--) {
-        const pickup = healthPickups[i];
-        if (checkCollision(tank, pickup)) {
-            // Apply health gain
-            tank.health = Math.min(tank.maxHealth, tank.health + pickup.healAmount);
-            
-            // Remove the pickup
-            healthPickups.splice(i, 1);
-            
-            // Update health bars
-            updateHealthBars();
-            
-            // Create a healing effect (green explosion)
-            createHealingEffect(tank.x + tank.width/2, tank.y + tank.height/2);
-            
-            // Schedule a new pickup
-            setTimeout(spawnHealthPickup, 5000 + Math.random() * 5000);
-        }
-    }
-}
-
-function createHealingEffect(x, y) {
-    explosions.push({
-        x: x,
-        y: y,
-        radius: 5,
-        maxRadius: 30,
-        opacity: 1,
-        growth: 2,
-        isHealing: true
+        // Red cross
+        ctx.fillStyle = '#e74c3c'; // Solid red
+        
+        // Horizontal bar
+        ctx.fillRect(-size * 0.35, -size * 0.15, size * 0.7, size * 0.3);
+        
+        // Vertical bar
+        ctx.fillRect(-size * 0.15, -size * 0.35, size * 0.3, size * 0.7);
+        
+        ctx.restore();
     });
 }
 
+
+// Draw a tank
 function drawTank(tank) {
     ctx.save();
-    ctx.translate(tank.x + tank.width / 2, tank.y + tank.height / 2);
-    ctx.rotate(tank.rotation * Math.PI / 180);
-
-    // Determine tank color (flash if hit)
-    let tankColor = tank.color;
-    if (tank.flashCount > 0 && tank.flashCount % 2 === 0) {
-        tankColor = 'white';
+    
+    // Translate to the tank's position and apply rotation
+    ctx.translate(tank.x, tank.y);
+    ctx.rotate((tank.rotation * Math.PI / 180) + 1.58);
+    
+    // Draw tank body
+    if (tank.flashCount > 0) {
+        // Flash when hit
+        ctx.fillStyle = '#ffffff';
+        tank.flashCount--;
+    } else {
+        ctx.fillStyle = tank.color;
     }
     
-    // Draw tank body (rectangle with thick outline)
-    ctx.fillStyle = tankColor;
-    ctx.fillRect(-tank.width / 2, -tank.height / 2, tank.width, tank.height);
-    
-    // Draw thick outline
-    ctx.strokeStyle = tank.borderColor;
-    ctx.lineWidth = 5;
-    ctx.strokeRect(-tank.width / 2, -tank.height / 2, tank.width, tank.height);
-    
-    // Draw tank gun/barrel
-    ctx.fillStyle = tankColor;
-    ctx.fillRect(0, -tank.barrelWidth / 2, tank.barrelLength, tank.barrelWidth);
-    ctx.strokeRect(0, -tank.barrelWidth / 2, tank.barrelLength, tank.barrelWidth);
-    
-    // Draw tank details
-    ctx.fillStyle = tank.borderColor;
+    // Main tank body (rounded rectangle)
     ctx.beginPath();
-    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    const radius = 10;
+    ctx.moveTo(-tank.width / 2 + radius, -tank.height / 2);
+    ctx.lineTo(tank.width / 2 - radius, -tank.height / 2);
+    ctx.arcTo(tank.width / 2, -tank.height / 2, tank.width / 2, -tank.height / 2 + radius, radius);
+    ctx.lineTo(tank.width / 2, tank.height / 2 - radius);
+    ctx.arcTo(tank.width / 2, tank.height / 2, tank.width / 2 - radius, tank.height / 2, radius);
+    ctx.lineTo(-tank.width / 2 + radius, tank.height / 2);
+    ctx.arcTo(-tank.width / 2, tank.height / 2, -tank.width / 2, tank.height / 2 - radius, radius);
+    ctx.lineTo(-tank.width / 2, -tank.height / 2 + radius);
+    ctx.arcTo(-tank.width / 2, -tank.height / 2, -tank.width / 2 + radius, -tank.height / 2, radius);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Tank border
+    ctx.strokeStyle = tank.borderColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Tank detail - treads
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-tank.width / 2 - 5, -tank.height / 2, 5, tank.height);
+    ctx.fillRect(tank.width / 2, -tank.height / 2, 5, tank.height);
+    
+    // Tank detail - hatch
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.fillStyle = tank.borderColor;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#333';
+    ctx.fill();
+    
+    // Draw tank barrel
+    ctx.fillStyle = tank.color;
+    ctx.fillRect(-tank.barrelWidth / 2, 0, tank.barrelWidth, -tank.barrelLength);
+    ctx.strokeStyle = tank.borderColor;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-tank.barrelWidth / 2, 0, tank.barrelWidth, -tank.barrelLength);
+    
+    // Draw cooldown indicator if applicable
+    if (tank.shootCooldown > 0) {
+        const cooldownPercentage = tank.shootCooldown / tank.maxCooldown;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Changed to transparent white
+        ctx.fillRect(-tank.barrelWidth / 2, 0, tank.barrelWidth, -tank.barrelLength * (1 - cooldownPercentage));
+    }
+    
+    ctx.restore();
+}
+
+// Draw a bullet
+function drawBullet(bullet) {
+    ctx.save();
+    
+    ctx.translate(bullet.x, bullet.y);
+    ctx.rotate(bullet.rotation * Math.PI / 180) ;
+    
+    // Bullet trail
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = bullet.color;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-15, -5);
+    ctx.lineTo(-15, 5);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Bullet body
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = bullet.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, bullet.radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Bullet glow
+    ctx.beginPath();
+    ctx.arc(0, 0, bullet.radius + 2, 0, Math.PI * 2);
+    ctx.strokeStyle = bullet.color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    ctx.restore();
+}
+
+// Draw explosion effect
+function drawExplosion(explosion) {
+    ctx.save();
+    
+    ctx.translate(explosion.x, explosion.y);
+    
+    // Draw outer explosion ring
+    ctx.beginPath();
+    ctx.arc(0, 0, explosion.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 165, 0, ${explosion.alpha})`;
+    ctx.fill();
+    
+    // Draw inner explosion
+    ctx.beginPath();
+    ctx.arc(0, 0, explosion.radius * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 0, ${explosion.alpha})`;
+    ctx.fill();
+    
+    // Draw center
+    ctx.beginPath();
+    ctx.arc(0, 0, explosion.radius * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${explosion.alpha})`;
     ctx.fill();
     
     ctx.restore();
 }
 
-function drawHealthPickups() {
-    healthPickups.forEach(pickup => {
-        // Pulsing effect
-        pickup.pulse = (pickup.pulse + 0.05) % (2 * Math.PI);
-        const pulseFactor = 1 + 0.1 * Math.sin(pickup.pulse);
-        
-        // Draw health pickup
-        ctx.save();
-        ctx.translate(pickup.x + pickup.width / 2, pickup.y + pickup.height / 2);
-        ctx.scale(pulseFactor, pulseFactor);
-        
-        // Use tank border colors
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = tank1.borderColor; // Using tank1's border color
-        ctx.fillStyle = '#2ecc71';
-        
-        // White background
-        ctx.beginPath();
-        ctx.arc(0, 0, pickup.width / 2 - 2, 0, Math.PI * 2);
-        ctx.fillStyle = 'white';
-        ctx.fill();
-        ctx.stroke();
-        
-        // Green cross
-        ctx.fillStyle = '#2ecc71';
-        // Horizontal bar
-        ctx.fillRect(-pickup.width * 0.3, -pickup.width * 0.1, pickup.width * 0.6, pickup.width * 0.2);
-        // Vertical bar
-        ctx.fillRect(-pickup.width * 0.1, -pickup.width * 0.3, pickup.width * 0.2, pickup.width * 0.6);
-        
-        ctx.restore();
-        
-        // Remove gradient effect - no code needed here as we're just not drawing it
-    });
+// Update health bars
+function updateHealthBars() {
+    tank1HealthBar.style.width = `${tank1.health}%`;
+    tank2HealthBar.style.width = `${tank2.health}%`;
+    
+    // Change color based on health
+    if (tank1.health > 50) {
+        tank1HealthBar.style.backgroundColor = '#2ecc71';
+    } else if (tank1.health > 25) {
+        tank1HealthBar.style.backgroundColor = '#f39c12';
+    } else {
+        tank1HealthBar.style.backgroundColor = '#e74c3c';
+    }
+    
+    if (tank2.health > 50) {
+        tank2HealthBar.style.backgroundColor = '#e74c3c';
+    } else if (tank2.health > 25) {
+        tank2HealthBar.style.backgroundColor = '#f39c12';
+    } else {
+        tank2HealthBar.style.backgroundColor = '#c0392b';
+    }
 }
 
+// Handle collision between two objects
+function checkCollision(obj1, obj2) {
+    // Adjust for tank rotation and position
+    let obj1Left, obj1Right, obj1Top, obj1Bottom;
+    let obj2Left, obj2Right, obj2Top, obj2Bottom;
+
+    const collisionPadding = 2; // Adjust this value to make collision smaller
+
+    if (obj1.radius) {
+        // For bullets (circular)
+        obj1Left = obj1.x - obj1.radius;
+        obj1Right = obj1.x + obj1.radius;
+        obj1Top = obj1.y - obj1.radius;
+        obj1Bottom = obj1.y + obj1.radius;
+    } else {
+        // For tanks and obstacles (rectangular)
+        if (obj1.rotation) {
+            // If it's a tank, use simplified bounding box
+            obj1Left = obj1.x - obj1.width / 2 + collisionPadding;
+            obj1Right = obj1.x + obj1.width / 2 - collisionPadding;
+            obj1Top = obj1.y - obj1.height / 2 + collisionPadding;
+            obj1Bottom = obj1.y + obj1.height / 2 - collisionPadding;
+        } else {
+            // For obstacles or health pickups
+            obj1Left = obj1.x + collisionPadding;
+            obj1Right = obj1.x + obj1.width - collisionPadding;
+            obj1Top = obj1.y + collisionPadding;
+            obj1Bottom = obj1.y + obj1.height - collisionPadding;
+        }
+    }
+
+    if (obj2.radius) {
+        // For bullets (circular)
+        obj2Left = obj2.x - obj2.radius;
+        obj2Right = obj2.x + obj2.radius;
+        obj2Top = obj2.y - obj2.radius;
+        obj2Bottom = obj2.y + obj2.radius;
+    } else {
+        // For tanks and obstacles (rectangular)
+        if (obj2.rotation) {
+            // If it's a tank, use simplified bounding box
+            obj2Left = obj2.x - obj2.width / 2 + collisionPadding;
+            obj2Right = obj2.x + obj2.width / 2 - collisionPadding;
+            obj2Top = obj2.y - obj2.height / 2 + collisionPadding;
+            obj2Bottom = obj2.y + obj2.height / 2 - collisionPadding;
+        } else {
+            // For obstacles or health pickups
+            obj2Left = obj2.x + collisionPadding;
+            obj2Right = obj2.x + obj2.width - collisionPadding;
+            obj2Top = obj2.y + collisionPadding;
+            obj2Bottom = obj2.y + obj2.height - collisionPadding;
+        }
+    }
+
+    return !(obj1Right < obj2Left || 
+             obj1Left > obj2Right || 
+             obj1Bottom < obj2Top || 
+             obj1Top > obj2Bottom);
+}
+
+
+// Handle shooting a bullet
 function shoot(tank) {
-    if (tank.shootCooldown > 0 || gameOver) return;
+    if (tank.shootCooldown > 0) return;
     
-    tank.shootCooldown = tank.maxCooldown;
-
-    // Calculate bullet starting position at the end of barrel
-    const bulletX = tank.x + tank.width / 2 + 
-        (tank.barrelLength + 5) * Math.cos(tank.rotation * Math.PI / 180);
-    const bulletY = tank.y + tank.height / 2 + 
-        (tank.barrelLength + 5) * Math.sin(tank.rotation * Math.PI / 180);
-
-    const bullet = {
-        x: bulletX,
-        y: bulletY,
-        width: 8, // Slightly bigger bullet
-        height: 8, // Slightly bigger bullet
-        rotation: tank.rotation,
+    // Calculate bullet start position - should match the end of the barrel
+    const radians = (tank.rotation * Math.PI) / 180;
+    const barrelEndX = tank.x + Math.cos(radians) * tank.barrelLength;
+    const barrelEndY = tank.y + Math.sin(radians) * tank.barrelLength;
+    
+    bullets.push({
+        x: barrelEndX,
+        y: barrelEndY,
+        radius: 5,
         speed: 10,
-        tankId: tank.id,
-        damage: 10,
+        rotation: tank.rotation, // Keep the bullet's rotation same as tank's
         color: tank.color,
-        borderColor: tank.borderColor // Same border color as tank
+        tankId: tank.id
+    });
+    
+    // Apply cooldown
+    tank.shootCooldown = tank.maxCooldown;
+    
+    // Play sound
+    if (soundEnabled) {
+        sounds.shoot.play();
+    }
+}
+
+
+
+// Create explosion effect
+function createExplosion(x, y, size = 1) {
+    explosions.push({
+        x: x,
+        y: y,
+        radius: 20 * size,
+        alpha: 1,
+        decreaseRate: 0.05
+    });
+    
+    // Play sound
+    if (soundEnabled) {
+        sounds.explosion.play();
+    }
+}
+
+// Handle tank movement
+// Handle tank movement
+// Initialize tanks
+
+
+// Handle tank movement
+function moveTank(tank, direction) {
+    const radians = tank.rotation * Math.PI / 180;
+    let moveX, moveY;
+    
+    // Calculate movement vector
+    if (direction === 'forward') {
+        moveX = Math.cos(radians) * tank.speed;
+        moveY = Math.sin(radians) * tank.speed;
+    } else {
+        moveX = -Math.cos(radians) * tank.speed;
+        moveY = -Math.sin(radians) * tank.speed;
+    }
+    
+    // Try the full movement first
+    let newX = tank.x + moveX;
+    let newY = tank.y + moveY;
+    
+    // Create temporary tank object for collision checking
+    const tempTank = { 
+        x: newX, 
+        y: newY, 
+        width: tank.width, 
+        height: tank.height,
+        rotation: tank.rotation
     };
     
-    bullets.push(bullet);
-}
-
-function updateBullets() {
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        const bullet = bullets[i];
-        
-        // Update bullet position
-        bullet.x += bullet.speed * Math.cos(bullet.rotation * Math.PI / 180);
-        bullet.y += bullet.speed * Math.sin(bullet.rotation * Math.PI / 180);
-
-        // Check if bullet is out of bounds
-        if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
-            bullets.splice(i, 1);
-            continue;
+    // Check boundaries
+    const halfWidth = tank.width / 2;
+    const halfHeight = tank.height / 2;
+    let boundaryCollision = false;
+    
+    // Horizontal boundary check
+    if (newX - halfWidth < 0) {
+        newX = halfWidth;
+        boundaryCollision = true;
+    } else if (newX + halfWidth > canvas.width) {
+        newX = canvas.width - halfWidth;
+        boundaryCollision = true;
+    }
+    
+    // Vertical boundary check
+    if (newY - halfHeight < 0) {
+        newY = halfHeight;
+        boundaryCollision = true;
+    } else if (newY + halfHeight > canvas.height) {
+        newY = canvas.height - halfHeight;
+        boundaryCollision = true;
+    }
+    
+    // Update temp tank position after boundary checks
+    tempTank.x = newX;
+    tempTank.y = newY;
+    
+    // Check collisions with obstacles
+    let obstacleCollision = false;
+    for (const obstacle of obstacles) {
+        if (checkCollision(tempTank, obstacle)) {
+            obstacleCollision = true;
+            break;
         }
-
-        // Check collision with tanks and obstacles
-        let hit = false;
+    }
+    
+    // Check collision with other tank
+    const otherTank = tank.id === 1 ? tank2 : tank1;
+    let tankCollision = checkCollision(tempTank, otherTank);
+    
+    // If there's a collision with obstacle or tank, try sliding
+    if (obstacleCollision || tankCollision) {
+        // Try moving only horizontally
+        tempTank.x = tank.x + moveX;
+        tempTank.y = tank.y;
         
-        // Get the shooter and target tanks
-        const shooterTank = bullet.tankId === 1 ? tank1 : tank2;
-        const targetTank = bullet.tankId === 1 ? tank2 : tank1;
+        let horizontalClear = true;
         
-        // Check collision with target tank
-        if (checkCollision(bullet, targetTank)) {
-            targetTank.health -= bullet.damage;
-            targetTank.flashCount = 10;
-            
-            // Create explosion effect
-            createExplosion(bullet.x, bullet.y);
-            
-            if (targetTank.health <= 0) {
-                targetTank.health = 0;
-                endGame(shooterTank.id);
-            }
-            
-            updateHealthBars();
-            hit = true;
-        }
-        
-        // Check collision with obstacles
+        // Check if horizontal movement is clear of obstacles
         for (const obstacle of obstacles) {
-            if (checkCollision(bullet, obstacle)) {
-                createExplosion(bullet.x, bullet.y);
-                hit = true;
+            if (checkCollision(tempTank, obstacle)) {
+                horizontalClear = false;
                 break;
             }
         }
         
-        // Remove bullet if it hit something
-        if (hit) {
-            bullets.splice(i, 1);
+        // Check if horizontal movement is clear of the other tank
+        if (horizontalClear && checkCollision(tempTank, otherTank)) {
+            horizontalClear = false;
         }
-    }
-}
-
-function createExplosion(x, y) {
-    explosions.push({
-        x: x,
-        y: y,
-        radius: 5,
-        maxRadius: 20,
-        opacity: 1,
-        growth: 2,
-        isHealing: false
-    });
-}
-
-function updateExplosions() {
-    for (let i = explosions.length - 1; i >= 0; i--) {
-        const explosion = explosions[i];
         
-        // Grow the explosion
-        explosion.radius += explosion.growth;
-        explosion.opacity -= 0.05;
+        // Check if horizontal movement is within boundaries
+        if (horizontalClear && (tempTank.x - halfWidth < 0 || tempTank.x + halfWidth > canvas.width)) {
+            horizontalClear = false;
+        }
         
-        // Remove faded explosions
-        if (explosion.opacity <= 0) {
-            explosions.splice(i, 1);
+        // Try moving only vertically
+        tempTank.x = tank.x;
+        tempTank.y = tank.y + moveY;
+        
+        let verticalClear = true;
+        
+        // Check if vertical movement is clear of obstacles
+        for (const obstacle of obstacles) {
+            if (checkCollision(tempTank, obstacle)) {
+                verticalClear = false;
+                break;
+            }
         }
-    }
-}
-
-function drawExplosions() {
-    explosions.forEach(explosion => {
-        if (explosion.isHealing) {
-            // Draw healing effect (green explosion)
-            const gradient = ctx.createRadialGradient(
-                explosion.x, explosion.y, 0,
-                explosion.x, explosion.y, explosion.radius
-            );
-            
-            gradient.addColorStop(0, `rgba(46, 204, 113, ${explosion.opacity})`);
-            gradient.addColorStop(0.4, `rgba(39, 174, 96, ${explosion.opacity * 0.8})`);
-            gradient.addColorStop(1, `rgba(20, 82, 20, ${explosion.opacity * 0.1})`);
-            
-            ctx.beginPath();
-            ctx.fillStyle = gradient;
-            ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
-            ctx.fill();
-        } else {
-            // Draw damage explosion (orange/red)
-            const gradient = ctx.createRadialGradient(
-                explosion.x, explosion.y, 0,
-                explosion.x, explosion.y, explosion.radius
-            );
-            
-            gradient.addColorStop(0, `rgba(255, 255, 100, ${explosion.opacity})`);
-            gradient.addColorStop(0.4, `rgba(255, 120, 40, ${explosion.opacity * 0.8})`);
-            gradient.addColorStop(1, `rgba(255, 20, 20, ${explosion.opacity * 0.1})`);
-            
-            ctx.beginPath();
-            ctx.fillStyle = gradient;
-            ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
-            ctx.fill();
+        
+        // Check if vertical movement is clear of the other tank
+        if (verticalClear && checkCollision(tempTank, otherTank)) {
+            verticalClear = false;
         }
-    });
-}
-
-function drawBullet(bullet) {
-    ctx.save();
-    ctx.translate(bullet.x, bullet.y);
-    ctx.rotate(bullet.rotation * Math.PI / 180);
-    
-    // Draw the larger bullet with outline
-    ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, Math.PI * 2); // Increased from 4 to 6
-    ctx.fillStyle = bullet.color;
-    ctx.fill();
-    
-    // Draw outline with tank's border color
-    ctx.strokeStyle = bullet.borderColor;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    // Draw trail
-    const gradient = ctx.createLinearGradient(-12, 0, 0, 0);
-    gradient.addColorStop(0, 'rgba(255, 255, 0, 0)');
-   gradient.addColorStop(0, 'rgba(255, 255, 0, 0)');
-    
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 0;
-    ctx.beginPath();
-    ctx.moveTo(-12, 0);
-    ctx.lineTo(0, 0);
-    ctx.stroke();
-    
-    ctx.restore();
-}
-
-function updateHealthBars() {
-    tank1HealthBar.style.width = (tank1.health / tank1.maxHealth * 100) + '%';
-    tank2HealthBar.style.width = (tank2.health / tank2.maxHealth * 100) + '%';
-    
-    // Update health bar colors based on health level
-    if (tank1.health < 30) {
-        tank1HealthBar.style.backgroundColor = '#e74c3c';
-    } else if (tank1.health < 60) {
-        tank1HealthBar.style.backgroundColor = '#f39c12';
+        
+        // Check if vertical movement is within boundaries
+        if (verticalClear && (tempTank.y - halfHeight < 0 || tempTank.y + halfHeight > canvas.height)) {
+            verticalClear = false;
+        }
+        
+        // Apply movement based on what's clear
+        if (horizontalClear) {
+            tank.x += moveX;
+        }
+        
+        if (verticalClear) {
+            tank.y += moveY;
+        }
+        
+        // If we hit something, add a small bounce/recoil effect
+        if (!horizontalClear && !verticalClear) {
+            // Small recoil in the opposite direction
+            const recoilDistance = 1;
+            const recoilX = tank.x - (moveX > 0 ? recoilDistance : -recoilDistance);
+            const recoilY = tank.y - (moveY > 0 ? recoilDistance : -recoilDistance);
+            
+            // Check if recoil position is valid
+            const recoilTank = {
+                x: recoilX,
+                y: recoilY,
+                width: tank.width,
+                height: tank.height,
+                rotation: tank.rotation
+            };
+            
+            let recoilValid = true;
+            
+            // Check obstacles
+            for (const obstacle of obstacles) {
+                if (checkCollision(recoilTank, obstacle)) {
+                    recoilValid = false;
+                    break;
+                }
+            }
+            
+            // Check other tank
+            if (recoilValid && checkCollision(recoilTank, otherTank)) {
+                recoilValid = false;
+            }
+            
+            // Apply recoil if valid
+            if (recoilValid) {
+                tank.x = recoilX;
+                tank.y = recoilY;
+            }
+        }
+    } else if (boundaryCollision) {
+        // If we only hit the boundary, just use the boundary-corrected position
+        tank.x = newX;
+        tank.y = newY;
     } else {
-        tank1HealthBar.style.backgroundColor = '#2ecc71';
+        // No collision at all, so move normally
+        tank.x = newX;
+        tank.y = newY;
+    }
+}
+
+
+// Rotate tank
+function rotateTank(tank, direction) {
+    if (direction === 'left') {
+        tank.rotation -= 3;
+    } else {
+        tank.rotation += 3;
     }
     
-    if (tank2.health < 30) {
-        tank2HealthBar.style.backgroundColor = '#e74c3c';
-    } else if (tank2.health < 60) {
-        tank2HealthBar.style.backgroundColor = '#f39c12';
-    } else {
-        tank2HealthBar.style.backgroundColor = '#e74c3c';
-    }
+    // Normalize rotation to 0-360
+    if (tank.rotation < 0) tank.rotation += 360;
+    if (tank.rotation >= 360) tank.rotation -= 360;
 }
 
-function endGame(winnerId) {
+// End game
+function endGame(winnerTank) {
     gameOver = true;
     
-    // Hide health bars
-    tank1HealthContainer.style.display = "none";
-    tank2HealthContainer.style.display = "none";
-    
-    // Show game over message
-    gameMessage.textContent = `TANK ${winnerId} WINS!`;
     gameMessage.style.display = "block";
+    gameMessage.innerHTML = `<span style="color: ${winnerTank.color}">PLAYER ${winnerTank.id} WINS!</span>`;
+    document.getElementById('game-buttons').style.display = "flex";
     
-    // Show restart button
-    restartButton.style.display = "block";
+    // Play victory sound
+    if (soundEnabled) {
+        sounds.victory.play();
+    }
 }
 
+// Handle input
+const keys = {};
+document.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    
+    // Prevent page scrolling
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+});
+
+// Main game loop
 function gameLoop() {
+    if (gameOver || isPaused) {
+        gameLoopId = requestAnimationFrame(gameLoop);
+        return;
+    }
+    
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
     // Draw grid and obstacles
     drawGrid();
     
     // Draw health pickups
     drawHealthPickups();
-
-    // Update tank movement
-    if (!gameOver) {
-        updateTankMovement(tank1, { w: keys.w, a: keys.a, s: keys.s, d: keys.d });
-        updateTankMovement(tank2, { w: keys.ArrowUp, a: keys.ArrowLeft, s: keys.ArrowDown, d: keys.ArrowRight });
-
-        // Handle shooting
-        if (keys[" "]) {
-            shoot(tank1);
-            keys[" "] = false;
-        }
-
-        if (keys.Enter) {
-            shoot(tank2);
-            keys.Enter = false;
+    
+    // Handle tank 1 input
+    if (keys['KeyW']) moveTank(tank1, 'forward');
+    if (keys['KeyS']) moveTank(tank1, 'backward');
+    if (keys['KeyA']) rotateTank(tank1, 'left');
+    if (keys['KeyD']) rotateTank(tank1, 'right');
+    if (keys['Space']) shoot(tank1);
+    
+    // Handle tank 2 input
+    if (keys['ArrowUp']) moveTank(tank2, 'forward');
+    if (keys['ArrowDown']) moveTank(tank2, 'backward');
+    if (keys['ArrowLeft']) rotateTank(tank2, 'left');
+    if (keys['ArrowRight']) rotateTank(tank2, 'right');
+    if (keys['Enter']) shoot(tank2);
+    
+    // Update bullets
+// Update bullets
+for (let i = bullets.length - 1; i >= 0; i--) {
+    const bullet = bullets[i];
+    const radians = (bullet.rotation * Math.PI) / 180;
+    
+    // Move bullet in the direction of the tank's rotation
+    bullet.x += Math.cos(radians) * bullet.speed;
+    bullet.y += Math.sin(radians) * bullet.speed;
+    
+    // Check if bullet is out of bounds
+    if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+        bullets.splice(i, 1);
+        continue;
+    }
+    
+    // Check collision with obstacles
+    let hitObstacle = false;
+    for (let j = 0; j < obstacles.length; j++) {
+        if (checkCollision(bullet, obstacles[j])) {
+            createExplosion(bullet.x, bullet.y, 0.5);
+            bullets.splice(i, 1);
+            hitObstacle = true;
+            break;
         }
     }
-
-    // Update game entities
-    updateBullets();
-    updateExplosions();
-
-    // Update tank state
-    if (tank1.flashCount > 0) tank1.flashCount--;
-    if (tank2.flashCount > 0) tank2.flashCount--;
-
-    if (tank1.shootCooldown > 0) tank1.shootCooldown--;
-    if (tank2.shootCooldown > 0) tank2.shootCooldown--;
-
-    // Draw game entities
-    drawTank(tank1);
-    drawTank(tank2);
-    bullets.forEach(drawBullet);
-    drawExplosions();
-
-    // Continue game loop
-    requestAnimationFrame(gameLoop);
+    
+    if (hitObstacle) continue;
+    
+    // Check collision with tanks
+    const tank1Hit = bullet.tankId !== 1 && checkCollision(bullet, tank1);
+    const tank2Hit = bullet.tankId !== 2 && checkCollision(bullet, tank2);
+    
+    if (tank1Hit) {
+        tank1.health -= 10;
+        tank1.flashCount = 5;
+        updateHealthBars();
+        createExplosion(bullet.x, bullet.y);
+        bullets.splice(i, 1);
+        
+        if (soundEnabled) {
+            sounds.tankHit.play();
+        }
+        
+        if (tank1.health <= 0) {
+            endGame(tank2);
+        }
+    }
+    else if (tank2Hit) {
+        tank2.health -= 10;
+        tank2.flashCount = 5;
+        updateHealthBars();
+        createExplosion(bullet.x, bullet.y);
+        bullets.splice(i, 1);
+        
+        if (soundEnabled) {
+            sounds.tankHit.play();
+        }
+        
+        if (tank2.health <= 0) {
+            endGame(tank1);
+        }
+    }
 }
 
-// Initialize and start game
-initGame();
-gameLoop();
+    
+    // Update health pickups
+    for (let i = healthPickups.length - 1; i >= 0; i--) {
+        const pickup = healthPickups[i];
+        
+        // Check if tank 1 picked up health
+        if (checkCollision(tank1, pickup)) {
+            tank1.health = Math.min(tank1.maxHealth, tank1.health + pickup.healAmount);
+            updateHealthBars();
+            healthPickups.splice(i, 1);
+            
+            if (soundEnabled) {
+                sounds.pickup.play();
+            }
+            continue;
+        }
+        
+        // Check if tank 2 picked up health
+        if (checkCollision(tank2, pickup)) {
+            tank2.health = Math.min(tank2.maxHealth, tank2.health + pickup.healAmount);
+            updateHealthBars();
+            healthPickups.splice(i, 1);
+            
+            if (soundEnabled) {
+                sounds.pickup.play();
+            }
+        }
+    }
+    
+    // Update explosions
+    for (let i = explosions.length - 1; i >= 0; i--) {
+        explosions[i].alpha -= explosions[i].decreaseRate;
+        if (explosions[i].alpha <= 0) {
+            explosions.splice(i, 1);
+        }
+    }
+    
+    // Update cooldowns
+    if (tank1.shootCooldown > 0) tank1.shootCooldown--;
+    if (tank2.shootCooldown > 0) tank2.shootCooldown--;
+    
+    // Draw tanks
+    drawTank(tank1);
+    drawTank(tank2);
+    
+    // Draw bullets
+    bullets.forEach(drawBullet);
+    
+    // Draw explosions
+    explosions.forEach(drawExplosion);
+    
+    // Continue game loop
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
 
-// Handle window resize
-window.addEventListener('resize', () => {
-    canvas.width = Math.min(window.innerWidth * 0.8, 1000);
-    canvas.height = Math.min(window.innerHeight * 0.8, 700);
+// Toggle pause
+
+
+// Show menu screen
+function showMenuScreen() {
+    menuScreen.classList.remove('hidden');
+    gameScreen.classList.add('hidden');
+    controlsScreen.classList.add('hidden');
+}
+
+// Show game screen
+function showGameScreen() {
+    menuScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    controlsScreen.classList.add('hidden');
+    
+    initGame();
+}
+
+// Show controls screen
+function showControlsScreen() {
+    menuScreen.classList.add('hidden');
+    gameScreen.classList.add('hidden');
+    controlsScreen.classList.remove('hidden');
+}
+
+// Event listeners
+window.addEventListener('resize', setCanvasDimensions);
+
+playButton.addEventListener('click', () => {
+    if (soundEnabled) sounds.menuClick.play();
+    showGameScreen();
 });
+
+controlsButton.addEventListener('click', () => {
+    if (soundEnabled) sounds.menuClick.play();
+    showControlsScreen();
+});
+
+backButton.addEventListener('click', () => {
+    if (soundEnabled) sounds.menuClick.play();
+    showMenuScreen();
+});
+
+restartButton.addEventListener('click', () => {
+    if (soundEnabled) sounds.menuClick.play();
+    initGame();
+});
+
+menuButton.addEventListener('click', () => {
+    if (soundEnabled) sounds.menuClick.play();
+    showMenuScreen();
+});
+
+
+// Keyboard shortcut for pause
+
+// Initialize the game
+initSounds();
+showMenuScreen();
+
