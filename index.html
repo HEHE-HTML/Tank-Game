@@ -3,79 +3,677 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2 Player Tank Battle</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <title>Ultimate Roast Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="roasts.js" defer></script>
+    <style>
+        :root {
+            --primary: #ff3e3e;
+            --secondary: #340068;
+            --background: #0a0a0a;
+            --text: #ffffff;
+            --accent: #ff7b00;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        html, body {
+            overflow-x: hidden; /* Only hide horizontal scrolling */
+            overflow-y: hidden;
+            height: 100%;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            position: relative;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .logo h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 10px rgba(255, 62, 62, 0.3);
+            letter-spacing: -1px;
+        }
+
+        .logo p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 10px;
+            font-size: 1.2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            margin-bottom: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 62, 62, 0.1) 0%, rgba(10, 10, 10, 0) 70%);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .card.active::before {
+            opacity: 1;
+        }
+
+        .roast-output {
+            min-height: 150px;
+            font-size: 1.8rem;
+            font-weight: 600;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .option-card {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(255, 62, 62, 0.3);
+        }
+
+        .option-card.active {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            transform: scale(1.05);
+        }
+
+        .option-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .control-panel {
+            display: flex;
+            margin-top: 40px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 62, 62, 0.3);
+            position: relative;
+            overflow: hidden;
+            outline: none;
+            width: 80%; /* Wider button */
+            max-width: 300px; /* Maximum width */
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(255, 62, 62, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 10px rgba(255, 62, 62, 0.4);
+        }
+
+        .intensity-slider {
+            width: 100%;
+            margin: 30px 0;
+        }
+
+        .slider-container {
+            position: relative;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            position: relative;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 62, 62, 0.7);
+            transition: all 0.3s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(255, 62, 62, 0.9);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 62, 62, 0.7);
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .slider::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(255, 62, 62, 0.9);
+        }
+
+        .intensity-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .copy-icon {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 1rem;
+            opacity: 0;
+            transition: all 0.5s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 5;
+        }
+
+        .loading.active {
+            opacity: 1;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Animation classes */
+        .burn-in {
+            animation: burnIn 0.5s forwards;
+        }
+
+        @keyframes burnIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+                filter: blur(10px);
+            }
+            50% {
+                filter: blur(5px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0);
+            }
+        }
+
+        .pulse {
+            animation: pulse 0.5s;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Improved responsive styles */
+        /* iPad/tablet styles */
+        @media only screen and (min-width: 768px) and (max-width: 1024px) {
+            .container {
+                max-width: 90%;
+                padding: 0 20px;
+            }
+            
+            .logo h1 {
+                font-size: 3rem;
+            }
+            
+            .btn {
+                padding: 15px 30px;
+                font-size: 1.3rem;
+                width: 80%;
+                max-width: 300px;
+            }
+            
+            .card {
+                padding: 30px;
+                margin-bottom: 30px;
+            }
+            
+            .roast-output {
+                font-size: 1.6rem;
+                min-height: 140px;
+            }
+            
+            .options {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 12px;
+            }
+            
+            .option-card {
+                padding: 12px;
+            }
+            
+            .option-icon {
+                font-size: 1.8rem;
+                margin-bottom: 8px;
+            }
+
+            /* Ensure full height content on iPad */
+            body {
+                min-height: 100%;
+                height: auto;
+                padding: 30px 20px;
+            }
+        }
+
+        /* Mobile phone styles */
+        @media (max-width: 767px) {
+            /* Hide title and subtitle on mobile */
+            .logo {
+                display: none;
+                margin-bottom: 15px;
+            }
+            
+            .container {
+                padding: 0 15px;
+                margin-top: 20px;
+            }
+            
+            .card {
+                padding: 20px;
+                margin-bottom: 25px;
+                margin-top: 10px;
+            }
+            
+            .roast-output {
+                font-size: 1.3rem;
+                min-height: 120px;
+                padding: 0 5px;
+            }
+            
+            .control-panel {
+                margin-top: 25px;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: none;
+                padding: 12px 20px;
+                font-size: 1.1rem;
+            }
+            
+            .options {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-top: 20px;
+            }
+            
+            .option-card {
+                padding: 10px;
+            }
+            
+            .option-icon {
+                font-size: 1.5rem;
+                margin-bottom: 5px;
+            }
+            
+            .slider-container label {
+                font-size: 1rem;
+            }
+            
+            .intensity-labels {
+                font-size: 0.9rem;
+            }
+            
+            /* Make sure content fits on small screens */
+            body {
+                height: auto;
+                padding: 20px 10px;
+                justify-content: flex-start;
+            }
+            
+            /* Ensure enough space at the bottom */
+            .container {
+                margin-bottom: 30px;
+            }
+        }
+
+        /* Small mobile phones */
+        @media (max-width: 375px) {
+            .roast-output {
+                font-size: 1.1rem;
+                min-height: 100px;
+            }
+            
+            .btn {
+                padding: 10px 15px;
+                font-size: 1rem;
+            }
+            
+            .copy-btn {
+                width: 30px;
+                height: 30px;
+            }
+            
+            .copy-icon {
+                width: 15px;
+                height: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div id="menu-screen" class="screen">
-        <div class="menu-container">
-            <h1 class="game-title">TANK BATTLE</h1>
-            <div class="menu-options">
-                <button id="play-button" class="menu-button">PLAY GAME</button>
-                <button id="controls-button" class="menu-button">CONTROLS</button>
+    <div class="container">
+        <div class="logo">
+            <h1 class="animate__animated animate__fadeInDown">BURN MASTER</h1>
+
+        </div>
+        
+        <div class="card animate__animated animate__fadeIn animate__delay-1s">
+            <div class="roast-output" id="roastOutput">Click Generate to create a devastating roast</div>
+            <button class="copy-btn" id="copyBtn" title="Copy to clipboard">
+                <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"/>
+                </svg>
+            </button>
+            <div class="loading" id="loadingIndicator">
+                <div class="loading-spinner"></div>
             </div>
+        </div>
+
+        <div class="slider-container animate__animated animate__fadeIn animate__delay-1s">
+            <label for="intensitySlider">Roast Intensity</label>
+            <input type="range" min="1" max="3" value="2" class="slider" id="intensitySlider">
+            <div class="intensity-labels">
+                <span>Mild</span>
+                <span>Medium</span>
+                <span>Savage</span>
+            </div>
+        </div>
+
+        <div class="options animate__animated animate__fadeIn animate__delay-1s">
+            <div class="option-card active" data-category="general">
+                <div class="option-icon">🔥</div>
+                <p>General</p>
+            </div>
+            <div class="option-card" data-category="appearance">
+                <div class="option-icon">👀</div>
+                <p>Appearance</p>
+            </div>
+            <div class="option-card" data-category="personality">
+                <div class="option-icon">🧠</div>
+                <p>Personality</p>
+            </div>
+            <div class="option-card" data-category="skills">
+                <div class="option-icon">🎯</div>
+                <p>Skills</p>
+            </div>
+        </div>
+
+        <div class="control-panel animate__animated animate__fadeIn animate__delay-1s">
+            <button class="btn" id="generateBtn">Generate Roast</button>
         </div>
     </div>
 
-    <div id="controls-screen" class="screen hidden">
-        <div class="controls-container">
-            <h2 class="screen-title">CONTROLS</h2>
-            <div class="controls-grid">
-                <div class="player-controls">
-                    <h3 class="player-title green-text">GREEN TANK</h3>
-                    <ul class="controls-list">
-                        <li><span class="key">W</span> Move Forward</li>
-                        <li><span class="key">S</span> Move Backward</li>
-                        <li><span class="key">A</span> Rotate Left</li>
-                        <li><span class="key">D</span> Rotate Right</li>
-                        <li><span class="key">SPACE</span> Fire</li>
-                    </ul>
-                </div>
-                <div class="player-controls">
-                    <h3 class="player-title red-text">RED TANK</h3>
-                    <ul class="controls-list">
-                        <li><span class="key">↑</span> Move Forward</li>
-                        <li><span class="key">↓</span> Move Backward</li>
-                        <li><span class="key">←</span> Rotate Left</li>
-                        <li><span class="key">→</span> Rotate Right</li>
-                        <li><span class="key">ENTER</span> Fire</li>
-                    </ul>
-                </div>
-            </div>
-            <button id="back-button" class="menu-button">BACK</button>
-        </div>
-    </div>
+    <div class="toast" id="toast">Copied to clipboard!</div>
 
-    <div id="game-screen" class="screen hidden">
-        <div class="game-container">
-            <canvas id="gameCanvas"></canvas>
+    <script>
+        // The roasts.js file will be loaded automatically
+        document.addEventListener('DOMContentLoaded', () => {
+            const roastOutput = document.getElementById('roastOutput');
+            const generateBtn = document.getElementById('generateBtn');
+            const intensitySlider = document.getElementById('intensitySlider');
+            const optionCards = document.querySelectorAll('.option-card');
+            const card = document.querySelector('.card');
+            const copyBtn = document.getElementById('copyBtn');
+            const toast = document.getElementById('toast');
+            const loadingIndicator = document.getElementById('loadingIndicator');
             
-            <div id="health-bars-container">
-                <div id="tank1-health-container" class="health-bar-container">
-                    <div class="health-bar-label">GREEN TANK</div>
-                    <div class="health-bar-wrapper">
-                        <div id="tank1-health" class="health-bar"></div>
-                    </div>
-                </div>
+            let selectedCategory = 'general';
+            let consecutiveClicks = 0;
+            let lastClickTime = 0;
+            
+            // Select option cards
+            optionCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    optionCards.forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    selectedCategory = card.dataset.category;
+                    
+                    // Add animation
+                    card.classList.add('pulse');
+                    setTimeout(() => {
+                        card.classList.remove('pulse');
+                    }, 500);
+                });
+            });
+            
+            // Generate roast
+            generateBtn.addEventListener('click', () => {
+                const currentTime = new Date().getTime();
                 
-                <div id="tank2-health-container" class="health-bar-container">
-                    <div class="health-bar-label">RED TANK</div>
-                    <div class="health-bar-wrapper">
-                        <div id="tank2-health" class="health-bar"></div>
-                    </div>
-                </div>
-            </div>
+                // Simple click counter for future use if needed
+                if (currentTime - lastClickTime < 400) {
+                    consecutiveClicks++;
+                } else {
+                    consecutiveClicks = 1;
+                }
+                lastClickTime = currentTime;
+                
+                // Generate roast
+                loadingIndicator.classList.add('active');
+                card.classList.add('active');
+                
+                setTimeout(() => {
+                    const intensity = parseInt(intensitySlider.value);
+                    let roast = '';
+                    
+                    if (typeof window.getRoast === 'function') {
+                        roast = window.getRoast(selectedCategory, intensity);
+                    } else {
+                        roast = "Error: roasts.js not loaded properly";
+                    }
+                    
+                    // Apply animation to the roast text
+                    roastOutput.innerHTML = '';
+                    roastOutput.classList.remove('burn-in');
+                    void roastOutput.offsetWidth; // Force reflow
+                    
+                    setTimeout(() => {
+                        roastOutput.textContent = roast;
+                        roastOutput.classList.add('burn-in');
+                        loadingIndicator.classList.remove('active');
+                        
+                        // Button effect
+                        generateBtn.classList.add('pulse');
+                        setTimeout(() => {
+                            generateBtn.classList.remove('pulse');
+                        }, 500);
+                    }, 300);
+                }, 800);
+            });
             
-            <div id="game-message"></div>
-            <div id="game-buttons">
-                <button id="restart-button" class="game-button">PLAY AGAIN</button>
-                <button id="menu-button" class="game-button">MAIN MENU</button>
-            </div>
-            <div id="pause-indicator" class="hidden">PAUSED</div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
+            // Intensity slider effects
+            intensitySlider.addEventListener('input', () => {
+                const value = parseInt(intensitySlider.value);
+                const gradient = [
+                    'rgba(255, 165, 0, 0.7)', // Orange
+                    'rgba(255, 99, 71, 0.8)', // Tomato
+                    'rgba(255, 0, 0, 0.9)'    // Red
+                ];
+                
+                // Update the thumb color based on intensity
+                intensitySlider.style.setProperty('--thumb-color', gradient[value - 1]);
+            });
+            
+            // Copy functionality
+            copyBtn.addEventListener('click', () => {
+                const text = roastOutput.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    toast.classList.add('show');
+                    setTimeout(() => {
+                        toast.classList.remove('show');
+                    }, 2000);
+                });
+                
+                // Animation
+                copyBtn.classList.add('pulse');
+                setTimeout(() => {
+                    copyBtn.classList.remove('pulse');
+                }, 500);
+            });
+        });
+    </script>
 </body>
 </html>
