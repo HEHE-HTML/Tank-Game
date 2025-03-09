@@ -193,8 +193,12 @@ body {
 
 /* Game Screen */
 .game-container {
-    position: relative;
+    position: absolute;
+    top: 23%; /* This positions the container 70% from the bottom */
+    left: 50%;
+    transform: translateX(-50%);
     filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
+    text-align: center; /* Center the canvas */
 }
 
 canvas {
@@ -305,7 +309,7 @@ canvas {
 
 #game-buttons {
     position: absolute;
-    bottom: 203px;
+    bottom: 22%; /* Adjust this percentage as needed */
     left: 50%;
     transform: translateX(-50%);
     display: none;
@@ -313,6 +317,7 @@ canvas {
     gap: 20px;
     z-index: 100;
 }
+
 
 
 
