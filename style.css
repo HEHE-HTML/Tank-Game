@@ -12,10 +12,10 @@ body {
 
 .screen {
     position: absolute;
-    top: 120px; /* Move everything down by 50px (adjust as needed) */
+    top: 0;
     left: 0;
     width: 100%;
-    height: calc(100% - 50px); /* Adjust height to account for the new top value */
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -43,8 +43,7 @@ body {
                 inset 0 0 20px rgba(52, 152, 219, 0.1);
     backdrop-filter: blur(10px);
     animation: glow 3s ease-in-out infinite alternate;
-    position: absolute; /* Ensure it can be positioned */
-    top: 150px; /* Adjust this value to move the menu up */
+    position: relative;
 }
 
 
@@ -120,17 +119,14 @@ body {
     border: 3px solid rgba(52, 152, 219, 0.3);
     box-shadow: 0 0 30px rgba(52, 152, 219, 0.2);
     backdrop-filter: blur(10px);
-    position: absolute; /* Add this */
-    top: 40%; /* Add this */
-    left: 49%; /* Add this */
-    transform: translate(-50%, -50%); /* Add this */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     min-width: 600px;
-    /* Remove these */
-    /* margin-top: -50px; */
-    /* margin-left: 20px; */
 }
 .player-controls:nth-child(2) { /* Targets the second .player-controls div (RED TANK) */
     margin-left: 200px; /* Adjust this value to move it further right */
